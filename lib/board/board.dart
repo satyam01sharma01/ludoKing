@@ -1,4 +1,4 @@
-import 'package:fugo/util/colors.dart';
+import 'package:dhoom/util/colors.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -30,7 +30,6 @@ class BoardPainter extends CustomPainter {
     _drawSteps(canvas, size);
 
     _calculatePlayerTracks();
-
   }
 
   @override

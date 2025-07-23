@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "fugo" "\0"
+            VALUE "FileDescription", "dhoom" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "fugo" "\0"
+            VALUE "InternalName", "dhoom" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "fugo.exe" "\0"
-            VALUE "ProductName", "fugo" "\0"
+            VALUE "OriginalFilename", "dhoom.exe" "\0"
+            VALUE "ProductName", "dhoom" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

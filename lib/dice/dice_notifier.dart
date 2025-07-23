@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+// import 'package:dhoom/state/dice_roll_sound.dart';
 
 class DiceNotifier extends ChangeNotifier {
   bool _isRolled = false;
@@ -10,6 +11,9 @@ class DiceNotifier extends ChangeNotifier {
   get output => _output;
 
   rollDice() async {
+    // await DiceRoll.initialize();
+    // await DiceRoll.playDiceSound();
+    // await DiceRoll.dispose();
     _isRolled = false;
     var rollCounter = 0;
 
