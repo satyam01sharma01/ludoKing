@@ -19,10 +19,10 @@ import '../dice/dice_base.dart';
 // import '../state/step_sound.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-
 class DhoomGame extends StatefulWidget {
   final List<int> playerIndices;
-  const DhoomGame({Key? key, this.playerIndices = const [0, 1, 2, 3]}) : super(key: key);
+  const DhoomGame({Key? key, this.playerIndices = const [0, 1, 2, 3]})
+    : super(key: key);
   @override
   _DhoomGameState createState() => _DhoomGameState();
 }
@@ -106,7 +106,7 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initData();
 
-      _playerPaintNotifier.rebuildPaint();
+      // _playerPaintNotifier.rebuildPaint();
 
       _highlightCurrentPlayer();
       _highlightDice();
@@ -128,7 +128,7 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
   }
 
   @override
-  Widget build(BuildContext context) {    
+  Widget build(BuildContext context) {
     return Scaffold(
       body: MultiProvider(
         providers: [
@@ -158,18 +158,21 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
                             child: CustomPaint(
                               painter: BoardPainter(
                                 trackCalculationListener: (playerTracks) {
-                                  if (_playerTracks.isEmpty && playerTracks.isNotEmpty) {
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      if (mounted) {
-                                        setState(() {
-                                          _playerTracks = playerTracks;
-                                          _initData();
-                                          _playerPaintNotifier.rebuildPaint();
-                                          _highlightCurrentPlayer();
-                                          _highlightDice();
+                                  if (_playerTracks.isEmpty &&
+                                      playerTracks.isNotEmpty) {
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          if (mounted) {
+                                            setState(() {
+                                              _playerTracks = playerTracks;
+                                              _initData();
+                                              _playerPaintNotifier
+                                                  .rebuildPaint();
+                                              _highlightCurrentPlayer();
+                                              _highlightDice();
+                                            });
+                                          }
                                         });
-                                      }
-                                    });
                                   }
                                 },
                               ),
@@ -181,7 +184,8 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
                               builder: (_, __) => CustomPaint(
                                 painter: OverlaySurface(
                                   highlightColor: _playerHighlightAnim.value!,
-                                  selectedHomeIndex: activePlayerIndices[_currentTurn],
+                                  selectedHomeIndex:
+                                      activePlayerIndices[_currentTurn],
                                   clickOffset: (clickOffset) {
                                     _handleClick(clickOffset);
                                   },
@@ -217,10 +221,10 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
                     onTap: () {
                       if (_diceHighlightAnimCont.isAnimating) {
                         // DiceRoll.playDiceSound();
-                        _soundPlayer.play(AssetSource('audio/dice.mp3'));
                         _playerHighlightAnimCont.reset();
                         _diceHighlightAnimCont.reset();
                         _diceNotifier.rollDice();
+                        _soundPlayer.play(AssetSource('audio/dice.mp3'));
                       }
                     },
                     child: SizedBox(
@@ -266,11 +270,14 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
     );
   }
 
-
-// older version 
-
   List<Widget> _buildPawnWidgets() {
     List<Widget> playerPawns = [];
+    // Map from rounded position to list of (playerIdx, pawnIdx, color)
+    Map<String, List<Map<String, dynamic>>> pawnsBySpot = {};
+    // Helper to round Offset to string key
+    String posKey(Offset o) =>
+        '${o.dx.toStringAsFixed(2)},${o.dy.toStringAsFixed(2)}';
+
     for (int i = 0; i < activePlayerIndices.length; i++) {
       int playerIndex = activePlayerIndices[i];
       Color playerColor;
@@ -287,25 +294,49 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
         default:
           playerColor = AppColors.player4;
       }
-      for (int pawnIndex = 0; pawnIndex < 4; pawnIndex++)
+      for (int pawnIndex = 0; pawnIndex < 4; pawnIndex++) {
+        final pos = _playerAnimList[i][pawnIndex].value;
+        final key = posKey(pos);
+        pawnsBySpot.putIfAbsent(key, () => []);
+        pawnsBySpot[key]!.add({
+          'playerIdx': i,
+          'pawnIdx': pawnIndex,
+          'color': playerColor,
+          'pos': pos,
+        });
+      }
+    }
+
+    // Now, for each pawn, calculate its offset if it shares a spot
+    pawnsBySpot.forEach((key, pawns) {
+      final n = pawns.length;
+      final double radius = 12.0; // distance from center for offset
+      for (int idx = 0; idx < pawns.length; idx++) {
+        final pawn = pawns[idx];
+        final Offset base = pawn['pos'];
+        Offset drawPos = base;
+        if (n > 1) {
+          // Arrange in a circle
+          final angle = 2 * pi * idx / n;
+          drawPos = base + Offset(radius * cos(angle), radius * sin(angle));
+        }
         playerPawns.add(
           SizedBox.expand(
             child: AnimatedBuilder(
               builder: (_, child) => CustomPaint(
                 painter: PlayersPainter(
-                  playerCurrentSpot:
-                      _playerAnimList[i][pawnIndex].value,
-                  playerColor: playerColor,
+                  playerCurrentSpot: drawPos,
+                  playerColor: pawn['color'],
                 ),
               ),
-              animation: _playerAnimList[i][pawnIndex],
+              animation: _playerAnimList[pawn['playerIdx']][pawn['pawnIdx']],
             ),
           ),
         );
-    }
+      }
+    });
     return playerPawns;
   }
-
 
   _initData() {
     // Clear lists to avoid accumulation on hot reload
@@ -332,6 +363,8 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
                 // StepSound.playDiceSound();
                 if (!_collisionDetails.isReverse) _stepCounter++;
                 _movePawn();
+                _playerPaintNotifier
+                    .rebuildPaint(); // <-- Trigger repaint after move
               }
             });
         currentPlayerAnimContList.add(currentAnimCont);
@@ -409,8 +442,10 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
     for (int i = 0; i < _pawnCurrentStepInfo[_currentTurn].length; i++) {
       var stepInfo = _pawnCurrentStepInfo[_currentTurn][i];
       if (_diceOutput == 6) {
-        if (_straightSixesCounter == 3) break;
-        else if (stepInfo.key + _diceOutput > _maxTrackIndex) continue;
+        if (_straightSixesCounter == 3)
+          break;
+        else if (stepInfo.key + _diceOutput > _maxTrackIndex)
+          continue;
         isValid = true;
         movablePawnIndex = i;
         movableCount++;
@@ -492,8 +527,7 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
         _changeTurn();
       }
     } else if (_stepCounter != _diceOutput) {
-      // //animate one step forward
-      _soundPlayer.play(AssetSource('audio/move.mp3'));
+      // Define the animation
       _playerAnimList[logicalPlayerIndex][pawnIndex] =
           Tween(
             begin: currentStepInfo.value.center,
@@ -509,6 +543,14 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
               curve: Interval(0.0, 0.5, curve: Curves.easeOutCubic),
             ),
           );
+      animCont.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _soundPlayer.play(AssetSource('audio/move.mp3'));
+          animCont.removeStatusListener((_) {});
+        }
+      });
+
+      // Start the animation
       animCont.forward(from: 0.0);
     } else {
       if (_checkCollision(currentStepInfo))
@@ -520,7 +562,8 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
           ); //add pawn to [_winnerPawnList]
 
           if (_winnerPawnList[logicalPlayerIndex].length < 4)
-            _provideFreeTurn = true; //if player has remaining pawns, provide free turn for reaching destination
+            _provideFreeTurn =
+                true; //if player has remaining pawns, provide free turn for reaching destination
           else {
             _resultNotifier.rebuildPaint(logicalPlayerIndex);
             _provideFreeTurn =
@@ -543,13 +586,21 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
         return safeSpot.contains(currentStepCenter);
       })) {
         List<CollisionDetails> collisions = [];
-        for (int logicalPlayerIndex = 0; logicalPlayerIndex < activePlayerIndices.length; logicalPlayerIndex++) {
+        for (
+          int logicalPlayerIndex = 0;
+          logicalPlayerIndex < activePlayerIndices.length;
+          logicalPlayerIndex++
+        ) {
           int playerIndex = activePlayerIndices[logicalPlayerIndex];
-          for (int pawnIndex = 0; pawnIndex < _pawnCurrentStepInfo[logicalPlayerIndex].length; pawnIndex++) {
-            if (logicalPlayerIndex != _currentTurn || pawnIndex != _selectedPawnIndex)
-              if (_pawnCurrentStepInfo[logicalPlayerIndex][pawnIndex].value.contains(
-                currentStepCenter,
-              )) {
+          for (
+            int pawnIndex = 0;
+            pawnIndex < _pawnCurrentStepInfo[logicalPlayerIndex].length;
+            pawnIndex++
+          ) {
+            if (logicalPlayerIndex != _currentTurn ||
+                pawnIndex != _selectedPawnIndex)
+              if (_pawnCurrentStepInfo[logicalPlayerIndex][pawnIndex].value
+                  .contains(currentStepCenter)) {
                 collisions.add(
                   CollisionDetails()
                     ..pawnIndex = pawnIndex
@@ -586,7 +637,8 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
   _changeTurn() {
     if (_winnerPawnList.where((playerPawns) {
           return playerPawns.length == 4;
-        }).length != activePlayerIndices.length - 1) //if any 3 players have completed
+        }).length !=
+        activePlayerIndices.length - 1) //if any 3 players have completed
     {
       _highlightDice();
 
@@ -595,7 +647,9 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
         do {
           //to ignore winners
           _currentTurn =
-              (_currentTurn + 1) % activePlayerIndices.length; //change turn after animation completes
+              (_currentTurn + 1) %
+              activePlayerIndices
+                  .length; //change turn after animation completes
           if (_winnerPawnList[_currentTurn].length != 4)
             break; //select player if he is not yet a winner
         } while (true);
@@ -628,4 +682,4 @@ class _DhoomGameState extends State<DhoomGame> with TickerProviderStateMixin {
       ),
     );
   }
-}
+} // more then on pawn on a single box handling
